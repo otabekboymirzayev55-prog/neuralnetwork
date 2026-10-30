@@ -1,17 +1,23 @@
+from functools import lru_cache
+from pathlib import Path
 import numpy as np
 from neural_network import NeuralNetwork
 
 # ──────────────────────────────────────────
 # LOAD TRAINED MODEL ONCE (at import time)
 # ──────────────────────────────────────────
+@lru_cache(maxsize=1)
 def _load_model():
-    data = np.load("model_weights.npy", allow_pickle=True).item()
+    path = Path(__file__).resolve().with_name("model_weights.npy")
+    if not path.is_file():
+        raise FileNotFoundError("Train the model first with python train.py")
+    data = np.load(path, allow_pickle=True).item()
     nn = NeuralNetwork([784, 128, 64, 10])
     nn.weights = data["weights"]
     nn.biases  = data["biases"]
     return nn
 
-_model = _load_model()
+# Model is loaded lazily on the first valid prediction.
 
 # ──────────────────────────────────────────
 # THE AGENT TOOL FUNCTION
@@ -31,7 +37,10 @@ def predict_digit(image_input):
             - confidence (float): 0.0-1.0
             - all_probabilities (dict): probability for each digit
     """
-    arr = np.array(image_input, dtype=float)
+    try:
+        arr = np.array(image_input, dtype=float)
+    except (TypeError, ValueError):
+        return {"error": "Pixels must be numeric"}
 
     # Handle both flat and 2D input
     if arr.shape == (28, 28):
@@ -40,12 +49,19 @@ def predict_digit(image_input):
     if arr.shape != (784,):
         return {"error": f"Expected 784 pixels, got {arr.shape}"}
 
+    if not np.isfinite(arr).all() or (arr < 0).any() or (arr > 255).any():
+        return {"error": "Pixels must be finite values between 0 and 255"}
+
     # Normalize if values look like 0-255
     if arr.max() > 1.0:
         arr = arr / 255.0
 
     # Run through network
-    probs = _model.forward(arr.reshape(1, -1))[0]
+    try:
+        model = _load_model()
+    except FileNotFoundError as exc:
+        return {"error": str(exc)}
+    probs = model.forward(arr.reshape(1, -1))[0]
 
     predicted = int(np.argmax(probs))
     confidence = float(probs[predicted])

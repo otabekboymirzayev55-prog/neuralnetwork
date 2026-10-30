@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+mnist_data/
+model_weights.npy
+.venv/

@@ -100,9 +100,6 @@ if __name__ == "__main__":
 
     acc = accuracy(nn, X_test, y_test)
     print(f"\n🎯 Test Accuracy: {acc * 100:.2f}%")
-# Save weights after training
-np.save("model_weights.npy", {
-    "weights": nn.weights,
-    "biases":  nn.biases
-})
-print("💾 Model saved to model_weights.npy")
+    # Save only after a successful explicit training run.
+    np.save("model_weights.npy", {"weights": nn.weights, "biases": nn.biases})
+    print("Model saved to model_weights.npy")
